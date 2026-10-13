@@ -16,11 +16,13 @@ EMAIL_PASSWORD = config['EMAIL']['EmailPassword']
 EMAIL_TITLE = config['EMAIL']['EmailTitle']
 #Body of email
 EMAIL_BODY = config['EMAIL']['EmailBody']
+#Display name shown as the sender of the email
+EMAIL_SENDER_NAME = config['EMAIL'].get('EmailSenderName', 'Photobooth')
 #Url to google sheet linked with the form
 SHEET_URL = config['URLS']['SheetUrl']
 
 #Define a GmailController
-mailController = MailController(EMAIL_ADDRESS, EMAIL_PASSWORD)
+mailController = MailController(EMAIL_ADDRESS, EMAIL_PASSWORD, EMAIL_SENDER_NAME)
 
 #Define a DataReceiver
 dataController = DataRetriever(SHEET_URL)
