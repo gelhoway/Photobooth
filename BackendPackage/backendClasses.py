@@ -8,8 +8,13 @@ from email import encoders #standard lib
 from email.mime.base import MIMEBase #standard lib
 from email.mime.text import MIMEText #standard lib
 from email.mime.multipart import MIMEMultipart #standard lib
+import io #standard lib
+import urllib.request #standard lib
 import pandas as pd #pandas
 from pathlib import Path #pathlib
+
+#Seconds to wait on any network call before giving up, so a dropped connection can't hang the backend forever
+NETWORK_TIMEOUT = 60
 
 class MailController:
     """Functions:
@@ -74,19 +79,16 @@ class MailController:
         #Convert message to a string
         text = message.as_string()
 
-        #try:
         #Send email
-        context=ssl.create_default_context()
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
-            server.login(self.email, self.password)
-            server.sendmail(self.email, destEmail, text)
-        return True
-        #except:
-        #    print("ERROR SENDING EMAIL")
-        #    return False
-       # except:
-       #     print("ERROR ENCODING EMAIL")
-       #     return False
+        try:
+            context=ssl.create_default_context()
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context, timeout=NETWORK_TIMEOUT) as server:
+                server.login(self.email, self.password)
+                server.sendmail(self.email, destEmail, text)
+            return True
+        except Exception as e:
+            print("ERROR SENDING EMAIL: " + repr(e))
+            return False
 
 class DataRetriever:
     """Checks if there are changes to a given google sheet and gets data from a given google sheet
@@ -107,10 +109,15 @@ class DataRetriever:
         #Store csv download link
         self.csvUrl = downloadUrl
         try:
-            self.currentData = pd.read_csv(self.csvUrl)
+            self.currentData = self.readSheet()
         except:
             self.currentData = None
             print("Spreadsheet Empty (Init)")
+
+    def readSheet(self):
+        """Downloads the sheet as a dataframe, raising an exception if it takes longer than NETWORK_TIMEOUT"""
+        with urllib.request.urlopen(self.csvUrl, timeout=NETWORK_TIMEOUT) as response:
+            return pd.read_csv(io.BytesIO(response.read()))
 
     def checkChanges(self):
         """Checks to see if any changes have been made to the data retriever website
@@ -119,10 +126,13 @@ class DataRetriever:
         """
         #Get frame and compare
         try:
-            df2 = pd.read_csv(self.csvUrl)
-        except:
-            df2 = None
-            print("Spreadsheet Empty (Compare)")
+            df2 = self.readSheet()
+        except Exception as e:
+            print("Spreadsheet Empty (Compare): " + repr(e))
+            return False
+        #If the sheet couldn't be read at startup, use this read as the baseline
+        if(self.currentData is None):
+            self.currentData = df2
             return False
         #If no change
         if(self.currentData.equals(df2)):

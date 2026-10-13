@@ -1,8 +1,12 @@
 #backend.py  Copyright (C) 2024  Valparaiso University
 
+import sys
 import time
 from BackendPackage import MailController, DataRetriever
 import configparser
+
+#Flush prints immediately so they show up in the service log
+sys.stdout.reconfigure(line_buffering=True)
 
 #Parse config.ini
 config = configparser.ConfigParser()
@@ -27,12 +31,16 @@ dataController = DataRetriever(SHEET_URL)
 
 while True:
     time.sleep(5)
-    result = dataController.checkChanges()
-    if(result):
-        email, folderId = dataController.getRecentData(1)
-        print("Sending pictures associated with key " + folderId[0] + " to email " + email[0])
-        result = mailController.sendMessage(EMAIL_TITLE, EMAIL_BODY, email[0], folderId[0])
+    #Never let one bad check or send stop the loop
+    try:
+        result = dataController.checkChanges()
         if(result):
-            print("Pictures associated with key " + folderId[0] + " sent successfully")
-        else:
-            print("Pictures associated with key " + folderId[0] + " failed to send")
+            email, folderId = dataController.getRecentData(1)
+            print("Sending pictures associated with key " + str(folderId[0]) + " to email " + str(email[0]))
+            result = mailController.sendMessage(EMAIL_TITLE, EMAIL_BODY, email[0], folderId[0])
+            if(result):
+                print("Pictures associated with key " + str(folderId[0]) + " sent successfully")
+            else:
+                print("Pictures associated with key " + str(folderId[0]) + " failed to send")
+    except Exception as e:
+        print("Backend error: " + repr(e))
