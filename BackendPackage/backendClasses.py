@@ -64,7 +64,7 @@ class MailController:
             </tr>
             <tr>
               <td style="background-color:{darkBrown};padding:16px 32px;font-size:12px;color:#d9c9b8;">
-                Go Beacons! This is an automated message from the Valpo photo booth. Please do not reply.
+                Go Beacons! Sent from the Valpo photo booth.
               </td>
             </tr>
           </table>
