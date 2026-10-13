@@ -3,11 +3,18 @@
 *.png
 *.jpeg
 
+
+#Image Folder
+Images/
+
 #Google api files
 credentials.json
 token.json
 
-
+#config files
+config.ini
+keyList.txt 
+resend_emails_manual.py
 
 #https://github.com/github/gitignore/blob/main/Python.gitignore
 

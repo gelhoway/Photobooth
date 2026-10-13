@@ -26,7 +26,6 @@ class VideoPlayer:
         self.camWIDTH, self.camHEIGHT = camRes
         self.vidSizeWIDTH, self.vidSizeHEIGHT = vidSize
         self.picam2 = Picamera2()
-        #Initialize qr code settings
         #Set camera config
         self.videoConfig = self.picam2.create_preview_configuration(main={"size": (self.vidWIDTH, self.vidHEIGHT)}, display="main", buffer_count = 3)
         #Set up image capture configuration
@@ -81,7 +80,7 @@ class VideoPlayer:
         scale = 4
         thickness = 3
         spacing = 50
-        #Set QR settings
+        #Initialize qr code settings
         qr = qrcode.QRCode(
             version = None,
             error_correction = qrcode.constants.ERROR_CORRECT_L,

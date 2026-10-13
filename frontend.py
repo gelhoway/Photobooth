@@ -142,6 +142,7 @@ while True:
         #Show start screen
         videoPlayer.showStartMenu()
         while(newSession):
+            time.sleep(0.1)
             pass
 
     #On first time entering photo mode
