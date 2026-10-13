@@ -19,35 +19,52 @@ class MailController:
         self.password = password
         self.senderName = senderName
 
+    #Valparaiso University brand colors
+    VALPO_BROWN = "#5C3000"
+    VALPO_DARK_BROWN = "#331A00"
+    VALPO_GOLD = "#F5B80A"
+
     def _buildHtml(self, title, body, photoCount):
-        """Builds a simple, email-client friendly HTML version of the message body"""
+        """Builds a Valpo brown and gold themed, email-client friendly HTML version of the message body"""
         paragraphs = "".join(
             f'<p style="margin:0 0 12px 0;">{html.escape(line)}</p>'
             for line in body.splitlines() if line.strip()
         )
         plural = "photo" if photoCount == 1 else "photos"
+        brown, darkBrown, gold = self.VALPO_BROWN, self.VALPO_DARK_BROWN, self.VALPO_GOLD
         return f"""\
 <!DOCTYPE html>
 <html>
-  <body style="margin:0;padding:0;background-color:#f4f4f4;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f4;padding:24px 0;">
+  <body style="margin:0;padding:0;background-color:#f3eee8;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3eee8;padding:24px 0;">
       <tr>
         <td align="center">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background-color:#ffffff;border-radius:8px;font-family:Arial,Helvetica,sans-serif;color:#333333;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background-color:#ffffff;border-radius:8px;overflow:hidden;font-family:Arial,Helvetica,sans-serif;color:#333333;">
             <tr>
-              <td style="padding:28px 32px 8px 32px;">
-                <h1 style="margin:0;font-size:22px;color:#222222;">{html.escape(title)}</h1>
+              <td style="background-color:{brown};padding:24px 32px;border-bottom:6px solid {gold};">
+                <p style="margin:0 0 4px 0;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:{gold};font-weight:bold;">Valparaiso University</p>
+                <h1 style="margin:0;font-size:24px;color:#ffffff;">{html.escape(title)}</h1>
               </td>
             </tr>
             <tr>
-              <td style="padding:16px 32px;font-size:15px;line-height:1.5;">
+              <td style="padding:28px 32px 12px 32px;font-size:15px;line-height:1.5;">
                 {paragraphs}
-                <p style="margin:0;">You have <strong>{photoCount} {plural}</strong> attached to this email.</p>
               </td>
             </tr>
             <tr>
-              <td style="padding:16px 32px 28px 32px;font-size:12px;color:#888888;border-top:1px solid #eeeeee;">
-                This is an automated message from the photo booth. Please do not reply.
+              <td style="padding:0 32px 28px 32px;">
+                <table role="presentation" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="background-color:{gold};color:{darkBrown};border-radius:4px;padding:10px 18px;font-size:15px;font-weight:bold;">
+                      {photoCount} {plural} attached
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="background-color:{darkBrown};padding:16px 32px;font-size:12px;color:#d9c9b8;">
+                Go Beacons! This is an automated message from the Valpo photo booth. Please do not reply.
               </td>
             </tr>
           </table>
