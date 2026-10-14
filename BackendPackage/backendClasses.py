@@ -10,9 +10,37 @@ from email.utils import formataddr #standard lib
 import pandas as pd #pandas
 from pathlib import Path #pathlib
 
+#Admissions info added to the email for visitors without a valpo.edu address
+ADMISSION_APPLY_URL = "https://www.valpo.edu/apply-to-valpo/"
+ADMISSION_VISIT_URL = "https://www.valpo.edu/admission/visit/"
+ADMISSION_INFO_URL = "https://www.valpo.edu/admission/"
+ADMISSION_PROGRAMS_URL = "https://www.valpo.edu/academics/find-your-program/"
+ADMISSION_EMAIL = "undergrad.admission@valpo.edu"
+ADMISSION_PHONE = "219.464.5011"
+#(name, link label, url, description)
+VALPO_COLLEGES = [
+    ("College of Arts and Sciences", "Arts & Sciences",
+     "https://www.valpo.edu/college-of-arts-and-sciences/",
+     "Sciences, humanities, social sciences, and the arts, from biology and psychology to music and communication."),
+    ("College of Business", "Business",
+     "https://www.valpo.edu/college-of-business/",
+     "Accounting, finance, management, marketing, and more. AACSB-accredited, a distinction held by the top 5% of business schools worldwide."),
+    ("College of Engineering", "Engineering",
+     "https://www.valpo.edu/college-of-engineering/",
+     "Bioengineering, civil, computer, electrical, and mechanical engineering, with hands-on design projects from your first year."),
+    ("College of Nursing and Health Professions", "Nursing & Health",
+     "https://www.valpo.edu/college-of-nursing-and-health-professions/",
+     "Nursing, public health, and other paths into healthcare. Nursing is direct-admit, so you start in your major on day one."),
+]
+
+def isValpoEmail(address):
+    """Returns True if address is a Valparaiso University (@valpo.edu) email address"""
+    return address.strip().lower().endswith("@valpo.edu")
+
 class MailController:
     """Functions:
         sendMessage(title, body, destEmail, folderKey)
+            Non valpo.edu recipients also get the admissions section
     """
     def __init__(self, email, password, senderName="Photobooth"):
         self.email = email
@@ -24,7 +52,116 @@ class MailController:
     VALPO_DARK_BROWN = "#331A00"
     VALPO_GOLD = "#F5B80A"
 
-    def _buildHtml(self, title, body, photoCount):
+    def _buildAdmissionHtml(self):
+        """Builds the admissions section: quick links, the four colleges, and how to apply"""
+        brown, darkBrown, gold = self.VALPO_BROWN, self.VALPO_DARK_BROWN, self.VALPO_GOLD
+        outlineButton = f"display:block;background-color:#ffffff;color:{brown};text-decoration:none;text-align:center;border:2px solid {brown};border-radius:6px;padding:12px 6px;font-size:15px;font-weight:bold;"
+        colleges = "".join(f"""
+                <a href="{url}" style="display:block;text-decoration:none;color:#333333;margin-bottom:12px;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e6d9c8;border-top:5px solid {gold};border-radius:6px;">
+                    <tr>
+                      <td style="padding:16px 18px;">
+                        <p style="margin:0 0 4px 0;font-size:17px;font-weight:bold;color:{brown};">{html.escape(name)}</p>
+                        <p style="margin:0 0 12px 0;font-size:14px;line-height:1.45;color:#444444;">{html.escape(description)}</p>
+                        <span style="display:inline-block;background-color:{brown};color:#ffffff;border-radius:4px;padding:8px 14px;font-size:14px;font-weight:bold;">Explore {html.escape(label)} &rarr;</span>
+                      </td>
+                    </tr>
+                  </table>
+                </a>"""
+            for name, label, url, description in VALPO_COLLEGES
+        )
+        step = f"display:inline-block;width:26px;height:26px;line-height:26px;text-align:center;border-radius:13px;background-color:{gold};color:{darkBrown};font-weight:bold;"
+        return f"""\
+            <tr>
+              <td style="padding:20px 32px 8px 32px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td width="33%" style="padding:0 4px 0 0;">
+                      <a href="{ADMISSION_APPLY_URL}" style="display:block;background-color:{brown};color:#ffffff;text-decoration:none;text-align:center;border-radius:6px;padding:14px 6px;font-size:15px;font-weight:bold;">Apply</a>
+                    </td>
+                    <td width="33%" style="padding:0 2px;">
+                      <a href="{ADMISSION_VISIT_URL}" style="{outlineButton}">Visit</a>
+                    </td>
+                    <td width="33%" style="padding:0 0 0 4px;">
+                      <a href="{ADMISSION_INFO_URL}" style="{outlineButton}">Get Info</a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px 32px 4px 32px;">
+                <h2 style="margin:0;font-size:20px;color:{brown};">Find your college</h2>
+                <p style="margin:4px 0 0 0;font-size:14px;color:#666666;">Tap any college to explore its programs.</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:12px 32px 0 32px;">{colleges}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:4px 32px 8px 32px;">
+                <a href="{ADMISSION_PROGRAMS_URL}" style="display:block;text-decoration:none;background-color:#faf6f0;border:1px dashed {brown};border-radius:6px;padding:14px 18px;color:{brown};font-size:15px;">
+                  <strong>Not sure yet?</strong> Browse every major and program &rarr;
+                </a>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px 32px 4px 32px;">
+                <h2 style="margin:0;font-size:20px;color:{brown};">Applying is easy</h2>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:8px 32px 0 32px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:15px;line-height:1.45;">
+                  <tr>
+                    <td width="36" valign="top" style="padding:6px 0;"><span style="{step}">1</span></td>
+                    <td style="padding:6px 0;"><a href="{ADMISSION_APPLY_URL}" style="color:{brown};font-weight:bold;">Start your online application</a></td>
+                  </tr>
+                  <tr>
+                    <td width="36" valign="top" style="padding:6px 0;"><span style="{step}">2</span></td>
+                    <td style="padding:6px 0;">Ask your school counselor to send your transcript</td>
+                  </tr>
+                  <tr>
+                    <td width="36" valign="top" style="padding:6px 0;"><span style="{step}">3</span></td>
+                    <td style="padding:6px 0;"><a href="{ADMISSION_VISIT_URL}" style="color:{brown};font-weight:bold;">Schedule a campus tour</a> and meet us in person</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="padding:24px 32px 8px 32px;">
+                <a href="{ADMISSION_APPLY_URL}" style="display:block;background-color:{gold};color:{darkBrown};text-decoration:none;text-align:center;border-radius:6px;padding:16px;font-size:18px;font-weight:bold;">Apply to Valpo &rarr;</a>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="padding:8px 32px 28px 32px;font-size:14px;color:#555555;line-height:1.6;">
+                Questions? We're happy to help.<br>
+                <a href="mailto:{ADMISSION_EMAIL}" style="color:{brown};font-weight:bold;">{ADMISSION_EMAIL}</a>
+                &nbsp;&middot;&nbsp;
+                <a href="tel:+1{ADMISSION_PHONE.replace('.', '')}" style="color:{brown};font-weight:bold;">{ADMISSION_PHONE}</a>
+              </td>
+            </tr>
+"""
+
+    def _buildAdmissionText(self):
+        """Plain text version of the admissions section, for email clients that don't show HTML"""
+        lines = ["", "", "Thinking about college? Explore Valparaiso University's four colleges:", ""]
+        for name, label, url, description in VALPO_COLLEGES:
+            lines += [name, description, url, ""]
+        lines += [
+            "Not sure yet? Browse every major and program: " + ADMISSION_PROGRAMS_URL,
+            "",
+            "Applying is easy:",
+            "1. Start your online application: " + ADMISSION_APPLY_URL,
+            "2. Ask your school counselor to send your transcript",
+            "3. Schedule a campus tour: " + ADMISSION_VISIT_URL,
+            "",
+            "Questions? " + ADMISSION_EMAIL + " / " + ADMISSION_PHONE,
+        ]
+        return "\n".join(lines)
+
+    def _buildHtml(self, title, body, photoCount, includeAdmission=False):
         """Builds a Valpo brown and gold themed, email-client friendly HTML version of the message body"""
         paragraphs = "".join(
             f'<p style="margin:0 0 12px 0;">{html.escape(line)}</p>'
@@ -62,7 +199,7 @@ class MailController:
                 </table>
               </td>
             </tr>
-            <tr>
+{self._buildAdmissionHtml() if includeAdmission else ''}            <tr>
               <td style="background-color:{darkBrown};padding:16px 32px;font-size:12px;color:#d9c9b8;">
                 Go Beacons! Sent from the Valpo photo booth.
               </td>
@@ -101,8 +238,10 @@ class MailController:
         message["From"] = formataddr((self.senderName, self.email))
         message["To"] = destEmail
         message["Subject"] = title
-        message.set_content(body)
-        message.add_alternative(self._buildHtml(title, body, len(images)), subtype="html")
+        #Visitors without a valpo.edu address also get the admissions section
+        includeAdmission = not isValpoEmail(destEmail)
+        message.set_content(body + self._buildAdmissionText() if includeAdmission else body)
+        message.add_alternative(self._buildHtml(title, body, len(images), includeAdmission), subtype="html")
 
         #Attach images with their real type and a clean, numbered file name
         for number, image in enumerate(images, start=1):
