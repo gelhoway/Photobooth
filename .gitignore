@@ -14,7 +14,6 @@ token.json
 #config files
 config.ini
 keyList.txt 
-resend_emails_manual.py
 
 #https://github.com/github/gitignore/blob/main/Python.gitignore
 
