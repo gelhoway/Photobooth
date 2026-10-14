@@ -162,6 +162,10 @@ class DataRetriever:
             df2 = None
             print("Spreadsheet Empty (Compare)")
             return False
+        #First successful read (sheet was unreachable at startup); use it as the baseline
+        if(self.currentData is None):
+            self.currentData = df2
+            return False
         #If no change
         if(self.currentData.equals(df2)):
             return False
@@ -183,8 +187,8 @@ class DataRetriever:
             for i in range(num):
                 entry = self.currentData.iloc[-(i+1)]
                 entry = entry.values.tolist()
-                email.append(entry[1])
-                folderId.append(entry[2].upper())
+                email.append(str(entry[1]).strip())
+                folderId.append(str(entry[2]).strip().upper())
             return email, folderId
         except:
             print("Sheet Emptied")

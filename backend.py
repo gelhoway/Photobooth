@@ -1,6 +1,7 @@
 #backend.py  Copyright (C) 2024  Valparaiso University
 
 import time
+import traceback
 from BackendPackage import MailController, DataRetriever
 import configparser
 
@@ -29,12 +30,17 @@ dataController = DataRetriever(SHEET_URL)
 
 while True:
     time.sleep(5)
-    result = dataController.checkChanges()
-    if(result):
-        email, folderId = dataController.getRecentData(1)
-        print("Sending pictures associated with key " + folderId[0] + " to email " + email[0])
-        result = mailController.sendMessage(EMAIL_TITLE, EMAIL_BODY, email[0], folderId[0])
+    #Keep running even if a single check fails, so one bad response or network blip can't stop emails
+    try:
+        result = dataController.checkChanges()
         if(result):
-            print("Pictures associated with key " + folderId[0] + " sent successfully")
-        else:
-            print("Pictures associated with key " + folderId[0] + " failed to send")
+            email, folderId = dataController.getRecentData(1)
+            print("Sending pictures associated with key " + folderId[0] + " to email " + email[0])
+            result = mailController.sendMessage(EMAIL_TITLE, EMAIL_BODY, email[0], folderId[0])
+            if(result):
+                print("Pictures associated with key " + folderId[0] + " sent successfully")
+            else:
+                print("Pictures associated with key " + folderId[0] + " failed to send")
+    except Exception:
+        print("ERROR IN BACKEND LOOP")
+        traceback.print_exc()
