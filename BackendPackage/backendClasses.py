@@ -118,7 +118,7 @@ class MailController:
         #Send email
         try:
             context = ssl.create_default_context()
-            with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context, timeout=60) as server:
                 server.login(self.email, self.password)
                 server.send_message(message)
         except (smtplib.SMTPException, OSError) as e:

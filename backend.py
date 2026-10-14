@@ -1,9 +1,16 @@
 #backend.py  Copyright (C) 2024  Valparaiso University
 
+import socket
+import sys
 import time
 import traceback
 from BackendPackage import MailController, DataRetriever
 import configparser
+
+#Give up on any network request (sheet download, Gmail) that stalls, instead of waiting forever
+socket.setdefaulttimeout(60)
+#Print each log line immediately so it shows up in journalctl right away
+sys.stdout.reconfigure(line_buffering=True)
 
 #Parse config.ini
 config = configparser.ConfigParser()
