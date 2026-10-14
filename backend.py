@@ -1,8 +1,16 @@
 #backend.py  Copyright (C) 2024  Valparaiso University
 
+import socket
+import sys
 import time
+import traceback
 from BackendPackage import MailController, DataRetriever
 import configparser
+
+#Give up on any network request (sheet download, Gmail) that stalls, instead of waiting forever
+socket.setdefaulttimeout(60)
+#Print each log line immediately so it shows up in journalctl right away
+sys.stdout.reconfigure(line_buffering=True)
 
 #Parse config.ini
 config = configparser.ConfigParser()
@@ -16,23 +24,30 @@ EMAIL_PASSWORD = config['EMAIL']['EmailPassword']
 EMAIL_TITLE = config['EMAIL']['EmailTitle']
 #Body of email
 EMAIL_BODY = config['EMAIL']['EmailBody']
+#Display name shown as the sender of the email
+EMAIL_SENDER_NAME = config['EMAIL'].get('EmailSenderName', 'Photobooth')
 #Url to google sheet linked with the form
 SHEET_URL = config['URLS']['SheetUrl']
 
 #Define a GmailController
-mailController = MailController(EMAIL_ADDRESS, EMAIL_PASSWORD)
+mailController = MailController(EMAIL_ADDRESS, EMAIL_PASSWORD, EMAIL_SENDER_NAME)
 
 #Define a DataReceiver
 dataController = DataRetriever(SHEET_URL)
 
 while True:
     time.sleep(5)
-    result = dataController.checkChanges()
-    if(result):
-        email, folderId = dataController.getRecentData(1)
-        print("Sending pictures associated with key " + folderId[0] + " to email " + email[0])
-        result = mailController.sendMessage(EMAIL_TITLE, EMAIL_BODY, email[0], folderId[0])
+    #Keep running even if a single check fails, so one bad response or network blip can't stop emails
+    try:
+        result = dataController.checkChanges()
         if(result):
-            print("Pictures associated with key " + folderId[0] + " sent successfully")
-        else:
-            print("Pictures associated with key " + folderId[0] + " failed to send")
+            email, folderId = dataController.getRecentData(1)
+            print("Sending pictures associated with key " + folderId[0] + " to email " + email[0])
+            result = mailController.sendMessage(EMAIL_TITLE, EMAIL_BODY, email[0], folderId[0])
+            if(result):
+                print("Pictures associated with key " + folderId[0] + " sent successfully")
+            else:
+                print("Pictures associated with key " + folderId[0] + " failed to send")
+    except Exception:
+        print("ERROR IN BACKEND LOOP")
+        traceback.print_exc()

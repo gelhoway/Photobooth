@@ -1,92 +1,130 @@
 #backendClasses.py  Copyright (C) 2024  Valparaiso University
 
-import smtplib, ssl
+import smtplib, ssl #standard lib
+import html #standard lib
 import mimetypes #standard lib
 import os #standard lib
 import re #standard lib
-from email import encoders #standard lib
-from email.mime.base import MIMEBase #standard lib
-from email.mime.text import MIMEText #standard lib
-from email.mime.multipart import MIMEMultipart #standard lib
+from email.message import EmailMessage #standard lib
+from email.utils import formataddr #standard lib
 import pandas as pd #pandas
 from pathlib import Path #pathlib
 
 class MailController:
     """Functions:
-        sendMessage(title, body, destEmail, folderKey, bodyFormat='plain')
+        sendMessage(title, body, destEmail, folderKey)
     """
-    def __init__(self, email, password):
+    def __init__(self, email, password, senderName="Photobooth"):
         self.email = email
         self.password = password
-        pass
+        self.senderName = senderName
 
-    def sendMessage(self, title, body, destEmail, folderKey, bodyFormat='plain'):
-        """Sends a email using gmail to destEmal, containing files in folder Images/folderKey
+    #Valparaiso University brand colors
+    VALPO_BROWN = "#5C3000"
+    VALPO_DARK_BROWN = "#331A00"
+    VALPO_GOLD = "#F5B80A"
+
+    def _buildHtml(self, title, body, photoCount):
+        """Builds a Valpo brown and gold themed, email-client friendly HTML version of the message body"""
+        paragraphs = "".join(
+            f'<p style="margin:0 0 12px 0;">{html.escape(line)}</p>'
+            for line in body.splitlines() if line.strip()
+        )
+        plural = "photo" if photoCount == 1 else "photos"
+        brown, darkBrown, gold = self.VALPO_BROWN, self.VALPO_DARK_BROWN, self.VALPO_GOLD
+        return f"""\
+<!DOCTYPE html>
+<html>
+  <body style="margin:0;padding:0;background-color:#f3eee8;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3eee8;padding:24px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background-color:#ffffff;border-radius:8px;overflow:hidden;font-family:Arial,Helvetica,sans-serif;color:#333333;">
+            <tr>
+              <td style="background-color:{brown};padding:24px 32px;border-bottom:6px solid {gold};">
+                <p style="margin:0 0 4px 0;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:{gold};font-weight:bold;">Valparaiso University</p>
+                <h1 style="margin:0;font-size:24px;color:#ffffff;">{html.escape(title)}</h1>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:28px 32px 12px 32px;font-size:15px;line-height:1.5;">
+                {paragraphs}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 32px 28px 32px;">
+                <table role="presentation" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="background-color:{gold};color:{darkBrown};border-radius:4px;padding:10px 18px;font-size:15px;font-weight:bold;">
+                      {photoCount} {plural} attached
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="background-color:{darkBrown};padding:16px 32px;font-size:12px;color:#d9c9b8;">
+                Go Beacons! Sent from the Valpo photo booth.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+"""
+
+    def sendMessage(self, title, body, destEmail, folderKey):
+        """Sends a email using gmail to destEmail, containing files in folder Images/folderKey
 
             title: title of email
-            body: body of email
+            body: body of email (plain text, a styled HTML version is generated automatically)
             destEmail: email address to send the email to
             folderKey: name of folder the pictures you want to send are stored in
                 relative path to attachments should be Images/folderKey with all attachments inside folder folderKey
-            bodyFormat: text format the body is in, plain by default
             Returns: bool (True if successfully sent, False if not)
         """
-       # try:
-        #Grab image names in accessed image folder
+        #Grab images in accessed image folder, oldest first so they arrive in the order taken
         try:
-            imagePath = sorted((Path('Images') / folderKey).iterdir(), key = os.path.getmtime)
-        except:
+            images = sorted((Path('Images') / folderKey).iterdir(), key=os.path.getmtime)
+        except OSError:
             print("Invalid Key")
             return False
-        #images = imagePath.glob('*.*')
-        images = [str(i) for i in imagePath]
-        images = list(images)
-        print(images)
+        images = [i for i in images if i.is_file()]
+        if not images:
+            print("No pictures found for key " + folderKey)
+            return False
 
-        # Create a multipart message and set headers
-        message = MIMEMultipart()
-        message["From"] = self.email
+        #Create message with a plain text body and an HTML alternative
+        message = EmailMessage()
+        message["From"] = formataddr((self.senderName, self.email))
         message["To"] = destEmail
         message["Subject"] = title
-        # Add body to email
-        message.attach(MIMEText(body, "plain"))
+        message.set_content(body)
+        message.add_alternative(self._buildHtml(title, body, len(images)), subtype="html")
 
-        # Attach files
-        for i in images:
-            # Open file in binary mode
-            with open(i, "rb") as attachment:
-                # Add file as application/octet-stream
-                # Email client can usually download this automatically as attachment
-                part = MIMEBase("application", "octet-stream")
-                part.set_payload(attachment.read())
-
-            # Encode file in ASCII characters to send by email    
-            encoders.encode_base64(part)
-
-            # Add header as key/value pair to attachment part
-            part.add_header(
-                "Content-Disposition",
-                f"attachment; filename= {i.split('/')[-1]}",
+        #Attach images with their real type and a clean, numbered file name
+        for number, image in enumerate(images, start=1):
+            mimeType, _ = mimetypes.guess_type(image.name)
+            maintype, subtype = (mimeType or "application/octet-stream").split("/", 1)
+            message.add_attachment(
+                image.read_bytes(),
+                maintype=maintype,
+                subtype=subtype,
+                filename=f"photobooth-{number}{image.suffix.lower()}",
             )
 
-            # Add attachment to message and convert message to string
-            message.attach(part)
-        #Convert message to a string
-        text = message.as_string()
-
-        #try:
         #Send email
-        context=ssl.create_default_context()
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
-            server.login(self.email, self.password)
-            server.sendmail(self.email, destEmail, text)
+        try:
+            context = ssl.create_default_context()
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context, timeout=60) as server:
+                server.login(self.email, self.password)
+                server.send_message(message)
+        except (smtplib.SMTPException, OSError) as e:
+            print("ERROR SENDING EMAIL: " + str(e))
+            return False
         return True
-        #except:
-        #    print("ERROR SENDING EMAIL")
-        #    return False
-       # except:
-       #     print("ERROR ENCODING EMAIL")
-       #     return False
 
 class DataRetriever:
     """Checks if there are changes to a given google sheet and gets data from a given google sheet
@@ -124,6 +162,10 @@ class DataRetriever:
             df2 = None
             print("Spreadsheet Empty (Compare)")
             return False
+        #First successful read (sheet was unreachable at startup); use it as the baseline
+        if(self.currentData is None):
+            self.currentData = df2
+            return False
         #If no change
         if(self.currentData.equals(df2)):
             return False
@@ -145,8 +187,8 @@ class DataRetriever:
             for i in range(num):
                 entry = self.currentData.iloc[-(i+1)]
                 entry = entry.values.tolist()
-                email.append(entry[1])
-                folderId.append(entry[2].upper())
+                email.append(str(entry[1]).strip())
+                folderId.append(str(entry[2]).strip().upper())
             return email, folderId
         except:
             print("Sheet Emptied")
