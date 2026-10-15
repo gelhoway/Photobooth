@@ -11,9 +11,26 @@ from email.utils import formataddr #standard lib
 import pandas as pd #pandas
 from pathlib import Path #pathlib
 
+#Admissions info added to the email for visitors without a valpo.edu address
+ADMISSION_APPLY_URL = "https://www.valpo.edu/apply-to-valpo/"
+ADMISSION_VISIT_URL = "https://www.valpo.edu/admission/visit/"
+ADMISSION_EMAIL = "undergrad.admission@valpo.edu"
+#(short name, url)
+VALPO_COLLEGES = [
+    ("Arts & Sciences", "https://www.valpo.edu/college-of-arts-and-sciences/"),
+    ("Business", "https://www.valpo.edu/college-of-business/"),
+    ("Engineering", "https://www.valpo.edu/college-of-engineering/"),
+    ("Nursing & Health", "https://www.valpo.edu/college-of-nursing-and-health-professions/"),
+]
+
+def isValpoEmail(address):
+    """Returns True if address is a Valparaiso University (@valpo.edu) email address"""
+    return address.strip().lower().endswith("@valpo.edu")
+
 class MailController:
     """Functions:
         sendMessage(title, body, destEmail, folderKey)
+            Non valpo.edu recipients also get the admissions section
     """
     def __init__(self, email, password, senderName="Photobooth"):
         self.email = email
@@ -29,7 +46,58 @@ class MailController:
     VALPO_DARK_BROWN = "#331A00"
     VALPO_GOLD = "#F5B80A"
 
-    def _buildHtml(self, title, body, photoCount):
+    def _buildAdmissionHtml(self):
+        """Builds the short admissions section: a big Apply Now button and links to the four colleges"""
+        brown, darkBrown, gold = self.VALPO_BROWN, self.VALPO_DARK_BROWN, self.VALPO_GOLD
+        chip = f"display:block;background-color:#ffffff;color:{brown};text-decoration:none;text-align:center;border-radius:6px;padding:12px 2px;font-size:13px;font-weight:bold;white-space:nowrap;"
+        #Colleges as a 2 x 2 grid of buttons
+        rows = []
+        for i in range(0, len(VALPO_COLLEGES), 2):
+            cells = "".join(
+                f'<td width="50%" style="padding:4px;"><a href="{url}" style="{chip}">{html.escape(name)}</a></td>'
+                for name, url in VALPO_COLLEGES[i:i + 2]
+            )
+            rows.append(f"<tr>{cells}</tr>")
+        colleges = "".join(rows)
+        return f"""\
+            <tr>
+              <td style="padding:8px 32px 28px 32px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:{brown};border-radius:8px;">
+                  <tr>
+                    <td align="center" style="padding:28px 24px 8px 24px;">
+                      <p style="margin:0 0 6px 0;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:{gold};font-weight:bold;">Picture yourself here</p>
+                      <h2 style="margin:0 0 8px 0;font-size:28px;line-height:1.15;color:#ffffff;">Your next photo could be on campus.</h2>
+                      <p style="margin:0 0 20px 0;font-size:15px;line-height:1.5;color:#f0e2cf;">Find your path at Valpo. Start your application today.</p>
+                      <a href="{ADMISSION_APPLY_URL}" style="display:block;background-color:{gold};color:{darkBrown};text-decoration:none;text-align:center;border-radius:8px;padding:18px;font-size:20px;font-weight:bold;letter-spacing:1px;">APPLY NOW &rarr;</a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:16px 20px 4px 20px;">
+                      <p style="margin:0 0 4px 0;text-align:center;font-size:13px;color:#f0e2cf;">Explore our colleges</p>
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">{colleges}</table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align="center" style="padding:12px 24px 22px 24px;font-size:13px;color:#f0e2cf;">
+                      <a href="{ADMISSION_VISIT_URL}" style="color:{gold};font-weight:bold;">Visit campus</a>
+                      &nbsp;&middot;&nbsp;
+                      <a href="mailto:{ADMISSION_EMAIL}" style="color:{gold};font-weight:bold;">Questions?</a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+"""
+
+    def _buildAdmissionText(self):
+        """Plain text version of the admissions section, for email clients that don't show HTML"""
+        lines = ["", "", "Picture yourself at Valpo! Start your application today.",
+                 "APPLY NOW: " + ADMISSION_APPLY_URL, "", "Explore our colleges:"]
+        lines += [f"- {name}: {url}" for name, url in VALPO_COLLEGES]
+        lines += ["", "Visit campus: " + ADMISSION_VISIT_URL, "Questions? " + ADMISSION_EMAIL]
+        return "\n".join(lines)
+
+    def _buildHtml(self, title, body, photoCount, includeAdmission=False):
         """Builds a Valpo brown and gold themed, email-client friendly HTML version of the message body"""
         paragraphs = "".join(
             f'<p style="margin:0 0 12px 0;">{html.escape(line)}</p>'
@@ -67,7 +135,7 @@ class MailController:
                 </table>
               </td>
             </tr>
-            <tr>
+{self._buildAdmissionHtml() if includeAdmission else ''}            <tr>
               <td style="background-color:{darkBrown};padding:16px 32px;font-size:12px;color:#d9c9b8;">
                 Go Beacons! Sent from the Valpo photo booth.
               </td>
@@ -106,8 +174,10 @@ class MailController:
         message["From"] = formataddr((self.senderName, self.email))
         message["To"] = destEmail
         message["Subject"] = title
-        message.set_content(body)
-        message.add_alternative(self._buildHtml(title, body, len(images)), subtype="html")
+        #Visitors without a valpo.edu address also get the admissions section
+        includeAdmission = not isValpoEmail(destEmail)
+        message.set_content(body + self._buildAdmissionText() if includeAdmission else body)
+        message.add_alternative(self._buildHtml(title, body, len(images), includeAdmission), subtype="html")
 
         #Attach images with their real type and a clean, numbered file name
         for number, image in enumerate(images, start=1):
