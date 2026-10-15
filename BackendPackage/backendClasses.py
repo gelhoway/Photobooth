@@ -5,6 +5,7 @@ import html #standard lib
 import mimetypes #standard lib
 import os #standard lib
 import re #standard lib
+import time #standard lib
 from email.message import EmailMessage #standard lib
 from email.utils import formataddr #standard lib
 import pandas as pd #pandas
@@ -18,6 +19,10 @@ class MailController:
         self.email = email
         self.password = password
         self.senderName = senderName
+
+    #Times to try sending an email before giving up, and seconds to wait between tries
+    SEND_ATTEMPTS = 3
+    RETRY_DELAY = 5
 
     #Valparaiso University brand colors
     VALPO_BROWN = "#5C3000"
@@ -115,16 +120,19 @@ class MailController:
                 filename=f"photobooth-{number}{image.suffix.lower()}",
             )
 
-        #Send email
-        try:
-            context = ssl.create_default_context()
-            with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context, timeout=60) as server:
-                server.login(self.email, self.password)
-                server.send_message(message)
-        except (smtplib.SMTPException, OSError) as e:
-            print("ERROR SENDING EMAIL: " + str(e))
-            return False
-        return True
+        #Send email, retrying on a fresh connection if the upload stalls or drops partway
+        for attempt in range(1, self.SEND_ATTEMPTS + 1):
+            try:
+                context = ssl.create_default_context()
+                with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context, timeout=60) as server:
+                    server.login(self.email, self.password)
+                    server.send_message(message)
+                return True
+            except (smtplib.SMTPException, OSError) as e:
+                print(f"ERROR SENDING EMAIL (attempt {attempt} of {self.SEND_ATTEMPTS}): {e}")
+                if attempt < self.SEND_ATTEMPTS:
+                    time.sleep(self.RETRY_DELAY)
+        return False
 
 class DataRetriever:
     """Checks if there are changes to a given google sheet and gets data from a given google sheet
