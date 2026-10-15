@@ -14,24 +14,13 @@ from pathlib import Path #pathlib
 #Admissions info added to the email for visitors without a valpo.edu address
 ADMISSION_APPLY_URL = "https://www.valpo.edu/apply-to-valpo/"
 ADMISSION_VISIT_URL = "https://www.valpo.edu/admission/visit/"
-ADMISSION_INFO_URL = "https://www.valpo.edu/admission/"
-ADMISSION_PROGRAMS_URL = "https://www.valpo.edu/academics/find-your-program/"
 ADMISSION_EMAIL = "undergrad.admission@valpo.edu"
-ADMISSION_PHONE = "219.464.5011"
-#(name, link label, url, description)
+#(short name, url)
 VALPO_COLLEGES = [
-    ("College of Arts and Sciences", "Arts & Sciences",
-     "https://www.valpo.edu/college-of-arts-and-sciences/",
-     "Sciences, humanities, social sciences, and the arts, from biology and psychology to music and communication."),
-    ("College of Business", "Business",
-     "https://www.valpo.edu/college-of-business/",
-     "Accounting, finance, management, marketing, and more. AACSB-accredited, a distinction held by the top 5% of business schools worldwide."),
-    ("College of Engineering", "Engineering",
-     "https://www.valpo.edu/college-of-engineering/",
-     "Bioengineering, civil, computer, electrical, and mechanical engineering, with hands-on design projects from your first year."),
-    ("College of Nursing and Health Professions", "Nursing & Health",
-     "https://www.valpo.edu/college-of-nursing-and-health-professions/",
-     "Nursing, public health, and other paths into healthcare. Nursing is direct-admit, so you start in your major on day one."),
+    ("Arts & Sciences", "https://www.valpo.edu/college-of-arts-and-sciences/"),
+    ("Business", "https://www.valpo.edu/college-of-business/"),
+    ("Engineering", "https://www.valpo.edu/college-of-engineering/"),
+    ("Nursing & Health", "https://www.valpo.edu/college-of-nursing-and-health-professions/"),
 ]
 
 def isValpoEmail(address):
@@ -58,112 +47,54 @@ class MailController:
     VALPO_GOLD = "#F5B80A"
 
     def _buildAdmissionHtml(self):
-        """Builds the admissions section: quick links, the four colleges, and how to apply"""
+        """Builds the short admissions section: a big Apply Now button and links to the four colleges"""
         brown, darkBrown, gold = self.VALPO_BROWN, self.VALPO_DARK_BROWN, self.VALPO_GOLD
-        outlineButton = f"display:block;background-color:#ffffff;color:{brown};text-decoration:none;text-align:center;border:2px solid {brown};border-radius:6px;padding:12px 6px;font-size:15px;font-weight:bold;"
-        colleges = "".join(f"""
-                <a href="{url}" style="display:block;text-decoration:none;color:#333333;margin-bottom:12px;">
-                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e6d9c8;border-top:5px solid {gold};border-radius:6px;">
-                    <tr>
-                      <td style="padding:16px 18px;">
-                        <p style="margin:0 0 4px 0;font-size:17px;font-weight:bold;color:{brown};">{html.escape(name)}</p>
-                        <p style="margin:0 0 12px 0;font-size:14px;line-height:1.45;color:#444444;">{html.escape(description)}</p>
-                        <span style="display:inline-block;background-color:{brown};color:#ffffff;border-radius:4px;padding:8px 14px;font-size:14px;font-weight:bold;">Explore {html.escape(label)} &rarr;</span>
-                      </td>
-                    </tr>
-                  </table>
-                </a>"""
-            for name, label, url, description in VALPO_COLLEGES
-        )
-        step = f"display:inline-block;width:26px;height:26px;line-height:26px;text-align:center;border-radius:13px;background-color:{gold};color:{darkBrown};font-weight:bold;"
+        chip = f"display:block;background-color:#ffffff;color:{brown};text-decoration:none;text-align:center;border-radius:6px;padding:12px 2px;font-size:13px;font-weight:bold;white-space:nowrap;"
+        #Colleges as a 2 x 2 grid of buttons
+        rows = []
+        for i in range(0, len(VALPO_COLLEGES), 2):
+            cells = "".join(
+                f'<td width="50%" style="padding:4px;"><a href="{url}" style="{chip}">{html.escape(name)}</a></td>'
+                for name, url in VALPO_COLLEGES[i:i + 2]
+            )
+            rows.append(f"<tr>{cells}</tr>")
+        colleges = "".join(rows)
         return f"""\
             <tr>
-              <td style="padding:20px 32px 8px 32px;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <td style="padding:8px 32px 28px 32px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:{brown};border-radius:8px;">
                   <tr>
-                    <td width="33%" style="padding:0 4px 0 0;">
-                      <a href="{ADMISSION_APPLY_URL}" style="display:block;background-color:{brown};color:#ffffff;text-decoration:none;text-align:center;border-radius:6px;padding:14px 6px;font-size:15px;font-weight:bold;">Apply</a>
+                    <td align="center" style="padding:28px 24px 8px 24px;">
+                      <p style="margin:0 0 6px 0;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:{gold};font-weight:bold;">Picture yourself here</p>
+                      <h2 style="margin:0 0 8px 0;font-size:28px;line-height:1.15;color:#ffffff;">Your next photo could be on campus.</h2>
+                      <p style="margin:0 0 20px 0;font-size:15px;line-height:1.5;color:#f0e2cf;">Find your path at Valpo. Start your application today.</p>
+                      <a href="{ADMISSION_APPLY_URL}" style="display:block;background-color:{gold};color:{darkBrown};text-decoration:none;text-align:center;border-radius:8px;padding:18px;font-size:20px;font-weight:bold;letter-spacing:1px;">APPLY NOW &rarr;</a>
                     </td>
-                    <td width="33%" style="padding:0 2px;">
-                      <a href="{ADMISSION_VISIT_URL}" style="{outlineButton}">Visit</a>
+                  </tr>
+                  <tr>
+                    <td style="padding:16px 20px 4px 20px;">
+                      <p style="margin:0 0 4px 0;text-align:center;font-size:13px;color:#f0e2cf;">Explore our colleges</p>
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">{colleges}</table>
                     </td>
-                    <td width="33%" style="padding:0 0 0 4px;">
-                      <a href="{ADMISSION_INFO_URL}" style="{outlineButton}">Get Info</a>
+                  </tr>
+                  <tr>
+                    <td align="center" style="padding:12px 24px 22px 24px;font-size:13px;color:#f0e2cf;">
+                      <a href="{ADMISSION_VISIT_URL}" style="color:{gold};font-weight:bold;">Visit campus</a>
+                      &nbsp;&middot;&nbsp;
+                      <a href="mailto:{ADMISSION_EMAIL}" style="color:{gold};font-weight:bold;">Questions?</a>
                     </td>
                   </tr>
                 </table>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:24px 32px 4px 32px;">
-                <h2 style="margin:0;font-size:20px;color:{brown};">Find your college</h2>
-                <p style="margin:4px 0 0 0;font-size:14px;color:#666666;">Tap any college to explore its programs.</p>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:12px 32px 0 32px;">{colleges}
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:4px 32px 8px 32px;">
-                <a href="{ADMISSION_PROGRAMS_URL}" style="display:block;text-decoration:none;background-color:#faf6f0;border:1px dashed {brown};border-radius:6px;padding:14px 18px;color:{brown};font-size:15px;">
-                  <strong>Not sure yet?</strong> Browse every major and program &rarr;
-                </a>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:24px 32px 4px 32px;">
-                <h2 style="margin:0;font-size:20px;color:{brown};">Applying is easy</h2>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:8px 32px 0 32px;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:15px;line-height:1.45;">
-                  <tr>
-                    <td width="36" valign="top" style="padding:6px 0;"><span style="{step}">1</span></td>
-                    <td style="padding:6px 0;"><a href="{ADMISSION_APPLY_URL}" style="color:{brown};font-weight:bold;">Start your online application</a></td>
-                  </tr>
-                  <tr>
-                    <td width="36" valign="top" style="padding:6px 0;"><span style="{step}">2</span></td>
-                    <td style="padding:6px 0;">Ask your school counselor to send your transcript</td>
-                  </tr>
-                  <tr>
-                    <td width="36" valign="top" style="padding:6px 0;"><span style="{step}">3</span></td>
-                    <td style="padding:6px 0;"><a href="{ADMISSION_VISIT_URL}" style="color:{brown};font-weight:bold;">Schedule a campus tour</a> and meet us in person</td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-            <tr>
-              <td align="center" style="padding:24px 32px 8px 32px;">
-                <a href="{ADMISSION_APPLY_URL}" style="display:block;background-color:{gold};color:{darkBrown};text-decoration:none;text-align:center;border-radius:6px;padding:16px;font-size:18px;font-weight:bold;">Apply to Valpo &rarr;</a>
-              </td>
-            </tr>
-            <tr>
-              <td align="center" style="padding:8px 32px 28px 32px;font-size:14px;color:#555555;line-height:1.6;">
-                Questions? We're happy to help.<br>
-                <a href="mailto:{ADMISSION_EMAIL}" style="color:{brown};font-weight:bold;">{ADMISSION_EMAIL}</a>
-                &nbsp;&middot;&nbsp;
-                <a href="tel:+1{ADMISSION_PHONE.replace('.', '')}" style="color:{brown};font-weight:bold;">{ADMISSION_PHONE}</a>
               </td>
             </tr>
 """
 
     def _buildAdmissionText(self):
         """Plain text version of the admissions section, for email clients that don't show HTML"""
-        lines = ["", "", "Thinking about college? Explore Valparaiso University's four colleges:", ""]
-        for name, label, url, description in VALPO_COLLEGES:
-            lines += [name, description, url, ""]
-        lines += [
-            "Not sure yet? Browse every major and program: " + ADMISSION_PROGRAMS_URL,
-            "",
-            "Applying is easy:",
-            "1. Start your online application: " + ADMISSION_APPLY_URL,
-            "2. Ask your school counselor to send your transcript",
-            "3. Schedule a campus tour: " + ADMISSION_VISIT_URL,
-            "",
-            "Questions? " + ADMISSION_EMAIL + " / " + ADMISSION_PHONE,
-        ]
+        lines = ["", "", "Picture yourself at Valpo! Start your application today.",
+                 "APPLY NOW: " + ADMISSION_APPLY_URL, "", "Explore our colleges:"]
+        lines += [f"- {name}: {url}" for name, url in VALPO_COLLEGES]
+        lines += ["", "Visit campus: " + ADMISSION_VISIT_URL, "Questions? " + ADMISSION_EMAIL]
         return "\n".join(lines)
 
     def _buildHtml(self, title, body, photoCount, includeAdmission=False):
