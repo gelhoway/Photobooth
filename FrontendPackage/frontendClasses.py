@@ -74,6 +74,31 @@ class VideoPlayer:
     def showContinueScreen(self):
         self.showOverlay("takeendoverlay")
 
+    def showTimeoutWarning(self, secondsLeft):
+        """Show the continue screen with a countdown until the session ends"""
+        self.showOverlay(self.buildTimeoutOverlay(secondsLeft))
+
+    def buildTimeoutOverlay(self, secondsLeft):
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        lines = ["Still there?", "Session ends in " + str(secondsLeft)]
+        scale = 3
+        thickness = 3
+        lineSpacing = 50
+        #Load continue screen so the button hints stay visible
+        overlay = cv2.imread("Overlays/takeendoverlay.png", cv2.IMREAD_UNCHANGED)
+        lineHeight = cv2.getTextSize(lines[0], font, scale, thickness)[0][1]
+        #Center the block of text vertically above the button hints
+        y = int((overlay.shape[0] - len(lines)*lineHeight - (len(lines)-1)*lineSpacing)/2) - 100
+        for line in lines:
+            textSize = cv2.getTextSize(line, font, scale, thickness)[0]
+            y += lineHeight
+            coords = [int((overlay.shape[1]-textSize[0])/2), y]
+            #Same colors as the key text on the QR screen (BGRA)
+            cv2.putText(overlay, line, coords, font, scale, (0,48,92,255), thickness+4, cv2.LINE_AA)
+            cv2.putText(overlay, line, coords, font, scale, (10,184,245,255), thickness, cv2.LINE_AA)
+            y += lineSpacing
+        return overlay
+
     def showQRScreen(self, key, qrLink):
         font = cv2.FONT_HERSHEY_SIMPLEX
         text = "Key: " + key

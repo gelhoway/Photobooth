@@ -4,6 +4,7 @@
 from os import _exit
 import signal
 import time
+import math
 import pathlib
 import configparser
 #Installed packages
@@ -48,6 +49,10 @@ imagePath = pathlib.Path("Images/")
 QR_LINK = config['URLS']['FormUrl']
 #QR screen timeout in ms
 qrTimeout = int(config['TIMEOUT']['QrTimeout'])
+#Seconds without a button press before the session ends on its own
+sessionTimeout = config.getint('TIMEOUT', 'SessionTimeout', fallback=60)
+#Seconds of on-screen countdown shown before the session ends
+timeoutWarning = config.getint('TIMEOUT', 'TimeoutWarning', fallback=10)
 
 #GPIO Interrupt Functions
 def GPIO17Call(channel):
@@ -55,7 +60,9 @@ def GPIO17Call(channel):
     global showCamera
     global takePhoto
     global showQR
+    global lastActivity
     print("BUTTON1 Trig")
+    lastActivity = time.monotonic()
     #Cycle through states on press
     #If on the start screen
     if(newSession):
@@ -77,7 +84,9 @@ def GPIO27Call(channel):
     global contScreen
     global showCamera
     global showQR
+    global lastActivity
     print("BUTTON2 Trig")
+    lastActivity = time.monotonic()
     #If on the start screen
     if(newSession):
         #Advance to camera
@@ -122,6 +131,10 @@ showCamera = False
 takePhoto = False
 showQR = False
 initInstruct = True
+#Time of the last button press, used for the inactivity timeout
+lastActivity = time.monotonic()
+#Seconds currently shown on the timeout countdown, None when not shown
+warningShown = None
 
 while True:
     if(newSession):
@@ -139,6 +152,9 @@ while True:
         photoNameList = list("photo1")
         #Set init instruct so user gets instructions
         initInstruct = True
+        #Clear anything left over from the previous session
+        takePhoto = False
+        warningShown = None
         #Show start screen
         videoPlayer.showStartMenu()
         while(newSession):
@@ -167,6 +183,9 @@ while True:
         numPhotos+=1
         #Update photo name
         photoNameList[-1] = str(int(photoNameList[-1]) + 1)
+        #Restart the inactivity timer once the photo is done
+        lastActivity = time.monotonic()
+        warningShown = None
         #5 is max number of photos
         if(numPhotos == 5):
             showQR = True
@@ -177,6 +196,30 @@ while True:
         #Enable GPIO
         gpioControl.addEvent(gpioControl.btn1, GPIO17Call)
         gpioControl.addEvent(gpioControl.btn2, GPIO27Call)
+
+    #While in camera mode, end the session if nobody presses a button
+    if(showCamera and not takePhoto):
+        timeLeft = math.ceil(sessionTimeout - (time.monotonic() - lastActivity))
+        if(timeLeft <= 0):
+            showCamera = False
+            warningShown = None
+            if(numPhotos > 0):
+                #Show the key and QR code as if End Session was pressed
+                showQR = True
+            else:
+                #No photos were taken; put the unused key back and start over
+                keyGen.addKey(keyGen.key)
+                newSession = True
+        elif(timeLeft <= timeoutWarning):
+            #Count down on screen, updating once per second
+            if(timeLeft != warningShown):
+                videoPlayer.showTimeoutWarning(timeLeft)
+                warningShown = timeLeft
+        elif(warningShown is not None):
+            #A button was pressed during the countdown; restore the normal screen
+            videoPlayer.showContinueScreen()
+            warningShown = None
+        time.sleep(0.05)
 
     #If end of session
     if(showQR):
